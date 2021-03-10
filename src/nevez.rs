@@ -345,7 +345,7 @@ fn update_changelog<P: AsRef<Path>>(
     in_place: bool,
 ) -> Result<()> {
     let mut inserted = false;
-    let pat = Regex::new(r"^##\s+\[[\w.]+\]\s+-\s+[\d]{4}-[\d]{2}-[\d]{2}$")?;
+    let pat = Regex::new(r"^##\s+\[[\w\-.]+\]\s+-\s+[\d]{4}-[\d]{2}-[\d]{2}$")?;
     let input = File::open(&changelog)?;
     let reader = BufReader::new(input);
     let mut tmp = OsString::from(&changelog.as_ref());
