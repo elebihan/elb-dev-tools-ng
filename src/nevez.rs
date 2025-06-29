@@ -101,8 +101,8 @@ impl CommitLogParser {
         let date = DateTime::parse_from_rfc2822(&caps[1]).ok()?;
         Some(Commit {
             id: id.to_string(),
-            author: author,
-            date: date,
+            author,
+            date,
             message: lines
                 .skip(1)
                 .map(str::trim_start)
@@ -173,7 +173,7 @@ impl CommitClassifier {
             CommitKind::Bump => &self.bump_patterns,
             CommitKind::Fix => &self.fix_patterns,
         };
-        patterns.iter().any({ |p| p.is_match(message) })
+        patterns.iter().any(|p| p.is_match(message))
     }
 
     /// Perform classification
@@ -181,17 +181,17 @@ impl CommitClassifier {
         let (additions, others): (Vec<&'a Commit>, Vec<&'a Commit>) =
             commits.iter().partition(|&c| {
                 c.brief()
-                    .map_or(false, |m| self.check_kind(CommitKind::Addition, m))
+                    .is_some_and(|m| self.check_kind(CommitKind::Addition, m))
             });
         let (fixes, others): (Vec<&'a Commit>, Vec<&'a Commit>) =
             others.iter().partition(|&c| {
                 c.brief()
-                    .map_or(false, |m| self.check_kind(CommitKind::Fix, m))
+                    .is_some_and(|m| self.check_kind(CommitKind::Fix, m))
             });
         let (_, changes): (Vec<&'a Commit>, Vec<&'a Commit>) =
             others.iter().partition(|&c| {
                 c.brief()
-                    .map_or(false, |m| self.check_kind(CommitKind::Bump, m))
+                    .is_some_and(|m| self.check_kind(CommitKind::Bump, m))
             });
         ClassifiedCommits {
             additions,
@@ -299,7 +299,7 @@ fn collect_commits<P: AsRef<Path>>(path: P, tag: &str) -> Result<Vec<Commit>> {
         .arg("--invert-grep")
         .arg("--grep")
         .arg("^Squash")
-        .arg(format!("{}..HEAD", tag));
+        .arg(format!("{tag}..HEAD"));
 
     let text = run_command_or(&mut cmd, "git-log failed")?;
     let parser = CommitLogParser::new()?;
@@ -359,13 +359,12 @@ fn update_changelog<P: AsRef<Path>>(
     };
     for line in reader.lines() {
         let line = line?;
-        if pat.is_match(&line) {
-            if !inserted {
-                write!(writer, "{}", text)?;
+        if pat.is_match(&line)
+            && !inserted {
+                write!(writer, "{text}")?;
                 inserted = true;
             }
-        }
-        write!(writer, "{}\n", line)?;
+        writeln!(writer, "{line}")?;
     }
     if in_place {
         rename(&tmp, &changelog)?;

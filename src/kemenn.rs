@@ -7,7 +7,6 @@
 //
 
 use anyhow::{anyhow, Context, Result};
-use dirs;
 use elb_dev_tools_ng::run_command_or;
 use handlebars::{no_escape, Handlebars};
 use regex::Regex;
@@ -152,7 +151,7 @@ fn get_repo_changelog<P: AsRef<Path>>(
     version: &str,
 ) -> Result<String> {
     let pattern =
-        format!(r"^##\s+\[{}]\s+-\s+[\d]{{4}}-[\d]{{2}}-[\d]{{2}}$", version);
+        format!(r"^##\s+\[{version}]\s+-\s+[\d]{{4}}-[\d]{{2}}-[\d]{{2}}$");
     let pattern = Regex::new(pattern.as_str())?;
     let input = File::open(&path)?;
     let reader = BufReader::new(input);
@@ -174,7 +173,7 @@ fn get_repo_changelog<P: AsRef<Path>>(
 }
 
 fn get_project_name(url: &str) -> Option<String> {
-    let project = url.split('/').last()?;
+    let project = url.split('/').next_back()?;
     let name = match project.find(".git") {
         Some(pos) => String::from(&project[..pos]),
         None => project.to_string(),
@@ -231,10 +230,10 @@ impl Project {
         path.push(&self.changelog);
         let changelog = get_repo_changelog(&path, sem_version)?;
         let info = ReleaseInfo {
-            project: project,
-            url: url,
-            version: version,
-            changelog: changelog,
+            project,
+            url,
+            version,
+            changelog,
         };
         Ok(info)
     }
@@ -321,9 +320,7 @@ impl MailBuilder {
 
     fn build(self, data: &HashMap<String, String>) -> Result<String> {
         let template = self
-            .template
-            .as_ref()
-            .map(String::as_str)
+            .template.as_deref()
             .unwrap_or(DEFAULT_TEMPLATE);
         let mut handlebars = Handlebars::new();
         handlebars.register_escape_fn(no_escape);
@@ -336,14 +333,14 @@ impl MailBuilder {
 fn get_logged_user_email() -> Option<String> {
     let username = env::var("USER").or(env::var("USERNAME")).ok()?;
     env::var("HOSTNAME")
-        .map(|h| format!("{}@{}", username, h))
+        .map(|h| format!("{username}@{h}"))
         .ok()
 }
 
 fn get_user_email() -> Option<String> {
     if let Ok(email) = env::var("DEBEMAIL") {
         let emitter = env::var("DEBFULLNAME")
-            .map(|f| format!("{} <{}>", f, email))
+            .map(|f| format!("{f} <{email}>"))
             .unwrap_or(email);
         return Some(emitter);
     }

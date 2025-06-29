@@ -16,7 +16,7 @@ use tar::Archive;
 use tempfile::tempdir;
 
 fn is_readme_filename(path: &Path) -> bool {
-    path.to_str().map_or(false, |s| {
+    path.to_str().is_some_and(|s| {
         let filenames = &["readme", "readme.md", "readme.txt"];
         filenames.iter().any(|f| f.eq_ignore_ascii_case(s))
     })
